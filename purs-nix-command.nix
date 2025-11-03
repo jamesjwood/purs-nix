@@ -69,6 +69,8 @@ let
       ${foreign output}
     '';
 
+
+
   compile' = make-compile {
     globs = globs.main;
     inherit output;
@@ -211,7 +213,40 @@ let
 
       case $1 in
         compile )
-          ${compile'}
+          # Parse compile flags
+          JSON_ERRORS=""
+          VERBOSE_ERRORS=""
+          COMMENTS=""
+          NO_PREFIX=""
+          CODEGEN=""
+          OUTPUT_DIR="${output}"
+          
+          for arg in "''${@:2}"; do
+            case "$arg" in
+              --json-errors) JSON_ERRORS="--json-errors" ;;
+              --verbose-errors) VERBOSE_ERRORS="--verbose-errors" ;;
+              --comments) COMMENTS="--comments" ;;
+              --no-prefix) NO_PREFIX="--no-prefix" ;;
+              --codegen=*) CODEGEN="--codegen ''${arg#*=}" ;;
+              --output=*) OUTPUT_DIR="''${arg#*=}" ;;
+            esac
+          done
+          
+          # If codegen not specified, use default with docs
+          if [[ -z "$CODEGEN" ]]; then
+            CODEGEN="--codegen docs,js"
+          fi
+          
+          ${purescript}/bin/purs compile \
+            --output "$OUTPUT_DIR" \
+            $CODEGEN \
+            $JSON_ERRORS \
+            $VERBOSE_ERRORS \
+            $COMMENTS \
+            $NO_PREFIX \
+            ${globs.main}
+          
+          chmod -R u+w "$OUTPUT_DIR"
           echo "Compilation complete";;
 
         bundle )
@@ -285,14 +320,17 @@ let
 
     Commands:
     ------------------------------------------------------------------------
-    compile        Compile your project.
-    bundle         Compile then bundle your project.
-    run            Compile and run <MainModule>.main with node.
-    test           Compile and run <TestModule>.main with node.
+    compile [options]      Compile your project.
+                           Options: --json-errors, --verbose-errors, 
+                                   --comments, --no-prefix,
+                                   --codegen=<targets>, --output=<dir>
+    bundle                 Compile then bundle your project.
+    run                    Compile and run <MainModule>.main with node.
+    test                   Compile and run <TestModule>.main with node.
 
-    repl           Enter the REPL
-    docs <args>    Generate HTML documentation for all the modules in your
-                   project.
+    repl                   Enter the REPL
+    docs <args>            Generate HTML documentation for all the modules in your
+                           project.
     ------------------------------------------------------------------------
     package-info <name>    Show the info of a specific package.
     packages               Show all packages used in your project.

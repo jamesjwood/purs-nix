@@ -46,6 +46,7 @@ rec {
     purescript:
     { globs
     , output ? null
+    , backend ? null
     , verbose-errors ? false
     , comments ? false
     , codegen ? null
@@ -53,16 +54,34 @@ rec {
     , json-errors ? false
     }:
     let
+      # Force corefn codegen when backend is specified
+      effective-codegen = if backend != null then "corefn" else codegen;
+      
       flags = toString [
         (make-flag "--output " output)
         (make-flag "--verbose-errors" verbose-errors)
         (make-flag "--comments" comments)
-        (make-flag "--codegen " codegen)
+        (make-flag "--codegen " effective-codegen)
         (make-flag "--no-prefix" no-prefix)
         (make-flag "--json-errors" json-errors)
       ];
+      
+      purs-compile = "${purescript}/bin/purs compile ${flags} ${globs}";
+      
+      backend-compile = 
+        if backend != null then
+          let
+            backend-cmd = backend.cmd or "purerl";
+            backend-args = toString (backend.args or []);
+            output-dir = if output != null then output else "output";
+            # Ensure backend command is available in PATH
+            backend-path = if backend ? package then "${backend.package}/bin/" else "";
+          in
+          " && ${backend-path}${backend-cmd} ${backend-args} --output ${output-dir} ${output-dir}"
+        else
+          "";
     in
-    "${purescript}/bin/purs compile ${flags} ${globs}";
+    purs-compile + backend-compile;
 
   repl = purescript:
     { globs

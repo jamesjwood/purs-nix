@@ -34,6 +34,7 @@ in
     { nodejs ? pkgs.nodejs
     , purescript ? purescript'
     , foreign ? { }
+    , backend ? null
     , # this parameter is purposely undocumented because I don't see a reason to make
       # it part of the API. However, I have already done the work to make it optional,
       # so I will leave it here for now just in case.
@@ -208,6 +209,7 @@ in
                       (args
                        // { globs = make-dep-globs deps;
                             output = "output";
+                            inherit backend;
                           })
                   }
                 ''
@@ -322,6 +324,7 @@ in
                             ''"${local-globs}"''
                         } ${make-dep-globs all-deps}";
                      output = "output";
+                     inherit backend;
                    }
               )}
 
@@ -497,6 +500,7 @@ in
                       (stripped
                        // { globs = ''"${src}/**/*.purs" ${local-dep-globs} ${dg.globs}'';
                             output = "output";
+                            inherit backend;
                           })
                   }
                 '';

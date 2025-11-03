@@ -1,10 +1,10 @@
 {
   inputs = {
-    docs-search = {
-      # to prevent lock file explosion
-      flake = false;
-      url = "github:jamesjwood/purescript-docs-search";
-    };
+    # docs-search = {
+    #   # to prevent lock file explosion
+    #   flake = false;
+    #   url = "github:jamesjwood/purescript-docs-search";
+    # };
     get-flake.url = "github:ursi/get-flake";
     lint-utils = {
       url = "github:homotopic/lint-utils";
@@ -26,11 +26,11 @@
         , pkgs ? inputs.nixpkgs.legacyPackages.${system}
         , system
         }:
+        let
+          _ = builtins.trace "🔥 USING JAMESJWOOD ARM64 PURS-NIX! System: ${system}" null;
+        in
         import ./purs-nix.nix {
-          docs-search = 
-            if inputs ? docs-search && (get-flake inputs.docs-search).packages ? ${system}
-            then (get-flake inputs.docs-search).packages.${system}.default
-            else null;
+          docs-search = null; # Temporarily disabled for ARM64 compatibility
           inherit defaults overlays pkgs;
           inherit (parsec.lib) parsec;
           ps-tools = inputs.ps-tools.legacyPackages.${system};

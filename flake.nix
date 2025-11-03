@@ -1,10 +1,10 @@
 {
   inputs = {
-    # docs-search = {
-    #   # to prevent lock file explosion
-    #   flake = false;
-    #   url = "github:jamesjwood/purescript-docs-search";
-    # };
+    docs-search = {
+      # to prevent lock file explosion
+      flake = false;
+      url = "github:jamesjwood/purescript-docs-search";
+    };
     get-flake.url = "github:ursi/get-flake";
     lint-utils = {
       url = "github:homotopic/lint-utils";
@@ -27,7 +27,7 @@
         , system
         }:
         import ./purs-nix.nix {
-          docs-search = null; # Temporarily disabled for ARM64 compatibility
+          docs-search = inputs.docs-search;
           inherit defaults overlays pkgs;
           inherit (parsec.lib) parsec;
           ps-tools = inputs.ps-tools.legacyPackages.${system};

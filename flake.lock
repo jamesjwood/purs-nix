@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "docs-search": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1762180292,
+        "narHash": "sha256-yo4F0RXaiDIPgyqIKQ6wbgLoCBZINp19vAJpvPjzX8w=",
+        "owner": "jamesjwood",
+        "repo": "purescript-docs-search",
+        "rev": "15d82b5fa7d15821f43104b9eaf8c75adab201c1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "jamesjwood",
+        "repo": "purescript-docs-search",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "locked": {
         "lastModified": 1733328505,
@@ -201,6 +217,7 @@
     },
     "root": {
       "inputs": {
+        "docs-search": "docs-search",
         "get-flake": "get-flake",
         "lint-utils": "lint-utils",
         "make-shell": "make-shell",

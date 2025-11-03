@@ -26,9 +26,6 @@
         , pkgs ? inputs.nixpkgs.legacyPackages.${system}
         , system
         }:
-        let
-          _ = builtins.trace "🔥 USING JAMESJWOOD ARM64 PURS-NIX! System: ${system}" null;
-        in
         import ./purs-nix.nix {
           docs-search = null; # Temporarily disabled for ARM64 compatibility
           inherit defaults overlays pkgs;

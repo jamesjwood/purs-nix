@@ -3,15 +3,15 @@
     "docs-search": {
       "flake": false,
       "locked": {
-        "lastModified": 1675992564,
-        "narHash": "sha256-Tk9VSogFHXtXe9O9vuCEfM/PV/S7plMIO0I++fCZn7U=",
-        "owner": "purs-nix",
+        "lastModified": 1762174160,
+        "narHash": "sha256-+3+yaTMY+19lqQzxGlKteb31rof+eiSmxMM94IgD3C0=",
+        "owner": "jamesjwood",
         "repo": "purescript-docs-search",
-        "rev": "35822b1d6ce65b1a07f80dd9e2caf15c3ee83e2c",
+        "rev": "7b9114c9d5a5171aca0b89c0185b48e72e18d0b8",
         "type": "github"
       },
       "original": {
-        "owner": "purs-nix",
+        "owner": "jamesjwood",
         "repo": "purescript-docs-search",
         "type": "github"
       }
@@ -183,15 +183,16 @@
         "utils": "utils"
       },
       "locked": {
-        "lastModified": 1734620049,
-        "narHash": "sha256-fFTwE6hQO2e9tntPYVRoVutl7fhftiQoAZRtWoDyqh8=",
-        "owner": "purs-nix",
+        "lastModified": 1762171780,
+        "narHash": "sha256-zbbTk1Ci+XXgTgg8uwRD6abf59aW5irjp7uuD/JmeQs=",
+        "owner": "jamesjwood",
         "repo": "purescript-tools",
-        "rev": "ef9c423f7e28474f1a38fced7a4a2a6787eb33b9",
+        "rev": "5ef35da10c144b0a000739aebee0e2f481ac2735",
         "type": "github"
       },
       "original": {
-        "owner": "purs-nix",
+        "owner": "jamesjwood",
+        "ref": "arm64-support",
         "repo": "purescript-tools",
         "type": "github"
       }

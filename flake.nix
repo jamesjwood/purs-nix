@@ -13,7 +13,7 @@
     make-shell.url = "github:ursi/nix-make-shell/1";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     parsec.url = "github:nprindle/nix-parsec";
-    ps-tools.url = "github:purs-nix/purescript-tools";
+    ps-tools.url = "path:../purescript-tools";
     utils.url = "github:ursi/flake-utils/8";
   };
 
@@ -60,7 +60,7 @@
     // utils.apply-systems
       {
         inherit inputs;
-        systems = [ "x86_64-linux" "x86_64-darwin" ];
+        systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
       }
       ({ make-shell
        , lint-utils

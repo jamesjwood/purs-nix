@@ -13,7 +13,7 @@
     make-shell.url = "github:ursi/nix-make-shell/1";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     parsec.url = "github:nprindle/nix-parsec";
-    ps-tools.url = "github:jamesjwood/purescript-tools/arm64-support";
+    ps-tools.url = "github:purs-nix/purescript-tools";
     utils.url = "github:ursi/flake-utils/8";
   };
 

@@ -7,9 +7,16 @@ let
 
   build = { name, ... }@args:
     if l.hasAttrByPath [ "src" "flake" ] args then
-      l.recursiveUpdate
-        (getFlake args.src.flake.url).packages.${p.system}.${args.src.flake.package or "default"}
-        { purs-nix-info = { inherit name; } // args.src; }
+      let
+        flake = getFlake args.src.flake.url;
+        package-name = args.src.flake.package or "default";
+      in
+      if flake.packages ? ${p.system} && flake.packages.${p.system} ? ${package-name} then
+        l.recursiveUpdate
+          flake.packages.${p.system}.${package-name}
+          { purs-nix-info = { inherit name; } // args.src; }
+      else
+        throw "Package '${name}' from flake '${args.src.flake.url}' does not support system '${p.system}' or package '${package-name}' not found"
     else
       let
         legacy =

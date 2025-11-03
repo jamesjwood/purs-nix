@@ -25,7 +25,7 @@ with self; {
     };
   };
 
-  markdown-it.src.flake.url = "github:purs-nix/purescript-markdown-it/4b90edc070c9ede0ee045224e0c64f9c502c3bf7";
+  markdown-it.src.flake.url = "github:jamesjwood/purescript-markdown-it/9f1931fd723cf55db9684fdbaab1da5e4595f5b8";
 
   node-glob-basic = {
     src.git = {

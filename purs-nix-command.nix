@@ -238,10 +238,14 @@ let
           --compile-output ${output} \
           "''${@:2}" ${globs.all}
 
+          ${if docs-search != null then ''
           ${docs-search}/bin/purescript-docs-search \
             build-index \
             --docs-files "${output}/**/docs.json" \
-            ${bowers};;
+            ${bowers}
+          '' else ''
+          echo "docs-search not available, skipping search index generation"
+          ''};;
 
         package-info ) ${package-info} "$2";;
         packages ) ${packages};;

@@ -27,7 +27,10 @@
         , system
         }:
         import ./purs-nix.nix {
-          docs-search = (get-flake inputs.docs-search).packages.${system}.default;
+          docs-search = 
+            if inputs ? docs-search && (get-flake inputs.docs-search).packages ? ${system}
+            then (get-flake inputs.docs-search).packages.${system}.default
+            else null;
           inherit defaults overlays pkgs;
           inherit (parsec.lib) parsec;
           ps-tools = inputs.ps-tools.legacyPackages.${system};

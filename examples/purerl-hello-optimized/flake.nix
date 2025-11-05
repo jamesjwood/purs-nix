@@ -6,9 +6,9 @@
     nixpkgs.follows = "purs-nix/nixpkgs";
   };
 
-  outputs = { self, purs-nix, nixpkgs }:
+  outputs = { purs-nix, nixpkgs, ... }:
     let
-      system = "aarch64-darwin";  # Change to your system
+      system = "aarch64-darwin"; # Change to your system
       pkgs = nixpkgs.legacyPackages.${system};
       purs-nix-instance = purs-nix { inherit system; };
 
@@ -34,14 +34,16 @@
         pname = "purs-backend-es";
         version = "6.4.3";
         src = pkgs.fetchurl {
-          url = if pkgs.stdenv.isDarwin then
-            "https://github.com/aristanetworks/purescript-backend-optimizer/releases/download/v6.4.3/Darwin.tar.gz"
-          else
-            "https://github.com/aristanetworks/purescript-backend-optimizer/releases/download/v6.4.3/Linux.tar.gz";
-          sha256 = if pkgs.stdenv.isDarwin then
-            "sha256-NotYetKnown"  # Will update after first fetch
-          else
-            "sha256-NotYetKnown";
+          url =
+            if pkgs.stdenv.isDarwin then
+              "https://github.com/aristanetworks/purescript-backend-optimizer/releases/download/v6.4.3/Darwin.tar.gz"
+            else
+              "https://github.com/aristanetworks/purescript-backend-optimizer/releases/download/v6.4.3/Linux.tar.gz";
+          sha256 =
+            if pkgs.stdenv.isDarwin then
+              "sha256-NotYetKnown"  # Will update after first fetch
+            else
+              "sha256-NotYetKnown";
         };
         sourceRoot = ".";
         installPhase = ''
@@ -69,7 +71,7 @@
         optimizer = {
           cmd = "purs-backend-es";
           package = backend-optimizer;
-          args = [];  # Just optimize, don't build (purerl will build)
+          args = [ ]; # Just optimize, don't build (purerl will build)
         };
 
         # Use locked package set for pure evaluation
@@ -79,7 +81,7 @@
       };
     in
     {
-      packages.${system}.default = ps.output {};
+      packages.${system}.default = ps.output { };
 
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = [ purerl pkgs.erlang backend-optimizer ];

@@ -1,4 +1,4 @@
-with import <nixpkgs> {};
+with import <nixpkgs> { };
 stdenv.mkDerivation rec {
   pname = "purs-backend-es";
   version = "1.4.2";
@@ -8,12 +8,12 @@ stdenv.mkDerivation rec {
   };
   sourceRoot = "package";
   installPhase = ''
-    mkdir -p $out/bin $out/lib
-    cp -r . $out/lib/${pname}
-    cat > $out/bin/purs-backend-es <<EOF
-#!/usr/bin/env bash
-exec ${nodejs}/bin/node $out/lib/${pname}/index.js "\$@"
-EOF
-    chmod +x $out/bin/purs-backend-es
+        mkdir -p $out/bin $out/lib
+        cp -r . $out/lib/${pname}
+        cat > $out/bin/purs-backend-es <<EOF
+    #!/usr/bin/env bash
+    exec ${nodejs}/bin/node $out/lib/${pname}/index.js "\$@"
+    EOF
+        chmod +x $out/bin/purs-backend-es
   '';
 }

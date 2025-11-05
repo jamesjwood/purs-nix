@@ -81,20 +81,22 @@ in
             is-function = typeOf package-set == "lambda";
           in
           if is-function then
-            # Already in locked format: package-set is a function (self: {...})
+          # Already in locked format: package-set is a function (self: {...})
             build-set package-set
           else
             let
               # Fetch and parse the external package set (JSON format)
-              package-set-json = if package-set ? url then
-                fromJSON (readFile (p.fetchurl {
-                  url = package-set.url;
-                  sha256 = package-set.sha256 or p.lib.fakeSha256;
-                }))
-              else if package-set ? file then
-                fromJSON (readFile package-set.file)
-              else
-                package-set;
+              package-set-json =
+                if package-set ? url then
+                  fromJSON
+                    (readFile (p.fetchurl {
+                      inherit (package-set) url;
+                      sha256 = package-set.sha256 or p.lib.fakeSha256;
+                    }))
+                else if package-set ? file then
+                  fromJSON (readFile package-set.file)
+                else
+                  package-set;
             in
             # Convert JSON to purs-nix format and build
             build-set (u.convert-json-package-set package-set-json)
@@ -242,8 +244,7 @@ in
                       (args
                        // { globs = make-dep-globs deps;
                             output = "output";
-                            backend = backend;
-                            optimizer = optimizer;
+                            inherit backend optimizer;
                             skip-backend = backend != null;  # Skip if backend exists
                           })
                   }
@@ -302,7 +303,7 @@ in
           (foldl'
             (
               acc: d:
-               let
+              let
                 info = u.dep-info ps-pkgs' d;
                 dep-deps = map u.dep-name info.dependencies;
               in
@@ -397,8 +398,7 @@ in
                             ''"${local-globs}"''
                         } ${make-dep-globs all-deps}";
                      output = "output";
-                     backend = backend;
-                     optimizer = optimizer;
+                     inherit backend optimizer;
                      skip-backend = true;  # Always skip backend in incremental compile
                    }
               )}
@@ -412,52 +412,53 @@ in
           # Backend compilation (separate derivation to avoid symlink issues)
           final-drv =
             if backend != null then
-              mkDerivation {
-                name = "${name}-backend";
-                phases = [ "buildPhase" "installPhase" ];
+              mkDerivation
+                {
+                  name = "${name}-backend";
+                  phases = [ "buildPhase" "installPhase" ];
 
-                buildPhase = ''
-                  # Copy ONLY current package's CoreFn (not dependencies)
-                  # to avoid permission issues when purerl tries to write
-                  mkdir -p output
+                  buildPhase = ''
+                    # Copy ONLY current package's CoreFn (not dependencies)
+                    # to avoid permission issues when purerl tries to write
+                    mkdir -p output
 
-                  # Copy non-symlinked items (current package modules) from corefn-drv
-                  for item in ${corefn-drv}/*; do
-                    basename_item=$(basename "$item")
-                    if [ -d "$item" ] && [ ! -L "$item" ]; then
-                      ${copy} "$item" "output/$basename_item"
-                    elif [ -f "$item" ]; then
-                      ${copy} "$item" "output/$basename_item"
-                    fi
-                  done
-
-                  chmod -R u+w output
-
-                  # Run backend compiler on current package only (if there's content)
-                  # Check if output has any corefn.json files (non-dependency content)
-                  if find output -name "corefn.json" -type f | grep -q .; then
-                    ${u.compile-backend {
-                      inherit backend optimizer;
-                      corefn-dir = "output";
-                    }}
-                  fi
-
-                  # Now copy in .erl files from dependencies
-                  for item in ${corefn-drv}/*; do
-                    basename_item=$(basename "$item")
-                    if [ -L "$item" ] && [ -d "$item" ]; then
-                      # This is a symlinked dependency directory
-                      # Copy .erl files from it (they should exist from backend compilation)
-                      target="$(readlink -f "$item")"
-                      if [ -d "$target" ]; then
-                        ${copy} "$target" "output/$basename_item" 2>/dev/null || true
+                    # Copy non-symlinked items (current package modules) from corefn-drv
+                    for item in ${corefn-drv}/*; do
+                      basename_item=$(basename "$item")
+                      if [ -d "$item" ] && [ ! -L "$item" ]; then
+                        ${copy} "$item" "output/$basename_item"
+                      elif [ -f "$item" ]; then
+                        ${copy} "$item" "output/$basename_item"
                       fi
-                    fi
-                  done
-                '';
+                    done
 
-                installPhase = "mv output $out";
-              }
+                    chmod -R u+w output
+
+                    # Run backend compiler on current package only (if there's content)
+                    # Check if output has any corefn.json files (non-dependency content)
+                    if find output -name "corefn.json" -type f | grep -q .; then
+                      ${u.compile-backend {
+                        inherit backend optimizer;
+                        corefn-dir = "output";
+                      }}
+                    fi
+
+                    # Now copy in .erl files from dependencies
+                    for item in ${corefn-drv}/*; do
+                      basename_item=$(basename "$item")
+                      if [ -L "$item" ] && [ -d "$item" ]; then
+                        # This is a symlinked dependency directory
+                        # Copy .erl files from it (they should exist from backend compilation)
+                        target="$(readlink -f "$item")"
+                        if [ -d "$target" ]; then
+                          ${copy} "$target" "output/$basename_item" 2>/dev/null || true
+                        fi
+                      fi
+                    done
+                  '';
+
+                  installPhase = "mv output $out";
+                }
             else
               corefn-drv;
         in
@@ -627,8 +628,7 @@ in
                       (stripped
                        // { globs = ''"${src}/**/*.purs" ${local-dep-globs} ${dg.globs}'';
                             output = "output";
-                            backend = backend;
-                            optimizer = optimizer;
+                            inherit backend optimizer;
                           })
                   }
                 '';

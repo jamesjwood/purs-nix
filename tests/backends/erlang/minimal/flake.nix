@@ -1,22 +1,21 @@
 {
-  description = "Test three-stage architecture: CoreFn → Optional Optimizer → Backend";
+  description = "Minimal Erlang test - no dependencies, single file";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     get-flake.url = "github:ursi/get-flake";
   };
 
-  outputs = { self, nixpkgs, get-flake }:
+  outputs = { nixpkgs, get-flake, ... }:
     let
       system = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
 
-      # Get local purs-nix
-      main-project-flake = get-flake ../.;
+      main-project-flake = get-flake ../../../..;
       purs-nix = main-project-flake { inherit system; };
-      u = import ../utils.nix pkgs;
+      u = import ../../../../utils.nix pkgs;
 
-      purescript = purs-nix.purescript;
+      inherit (purs-nix) purescript;
 
       # Fetch purerl backend
       purerl = pkgs.stdenv.mkDerivation rec {
@@ -35,11 +34,10 @@
         dontFixup = true;
       };
 
-      # Minimal PureScript program (no dependencies, just types)
+      # Minimal program - no dependencies
       src = pkgs.writeTextDir "src/Main.purs" ''
         module Main where
 
-        -- Minimal program with no dependencies to test CoreFn generation
         identity :: forall a. a -> a
         identity x = x
 
@@ -47,11 +45,12 @@
         main = identity 42
       '';
 
-      # STAGE 1: Compile to CoreFn (per-package, cached)
+      # Stage 1: Compile to CoreFn
       corefn = pkgs.stdenv.mkDerivation {
-        name = "hello-corefn";
+        name = "minimal-corefn";
         inherit src;
         buildInputs = [ purescript ];
+        phases = [ "buildPhase" "installPhase" ];
         buildPhase = ''
           ${u.compile-corefn-only purescript {
             globs = ''"${src}/src/**/*.purs"'';
@@ -61,20 +60,15 @@
         installPhase = "cp -r output $out";
       };
 
-      # STAGE 2: Optimizer (skipped in this test)
-      # optimized-corefn = if optimizer != null then ... else corefn;
-
-      # STAGE 3: Backend compilation (whole-project)
+      # Stage 3: Backend compilation
       backend-output = pkgs.stdenv.mkDerivation {
-        name = "hello-erl";
+        name = "minimal-erl";
         buildInputs = [ purerl ];
         phases = [ "buildPhase" "installPhase" ];
         buildPhase = ''
-          # Copy CoreFn
           cp -r ${corefn} output
           chmod -R u+w output
 
-          # Run backend (whole-project)
           ${u.compile-backend-directory {
             backend = {
               package = purerl;
@@ -90,17 +84,11 @@
     {
       packages.${system} = {
         default = backend-output;
-        corefn = corefn;
+        inherit corefn;
       };
 
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = [ purescript purerl pkgs.erlang ];
-        shellHook = ''
-          echo "Three-stage architecture test environment"
-          echo "Stage 1: purs → CoreFn"
-          echo "Stage 2: Optimizer (optional)"
-          echo "Stage 3: Backend → .erl"
-        '';
       };
     };
 }

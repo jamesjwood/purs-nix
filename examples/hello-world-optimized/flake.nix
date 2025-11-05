@@ -12,7 +12,7 @@
     , nixpkgs
     , utils
     , ...
-    }@inputs:
+    }:
     utils.lib.eachDefaultSystem
       (system:
       let
@@ -35,39 +35,39 @@
           sourceRoot = "package";
 
           installPhase = ''
-            runHook preInstall
+                        runHook preInstall
 
-            mkdir -p $out/bin $out/lib
-            # Copy all package contents
-            cp -r . $out/lib/${pname}
+                        mkdir -p $out/bin $out/lib
+                        # Copy all package contents
+                        cp -r . $out/lib/${pname}
 
-            # Create wrapper script that translates -o flag to purs-backend-es args
-            cat > $out/bin/purs-backend-es <<EOF
-#!/usr/bin/env bash
-# Wrapper to translate standard -o flag to purs-backend-es arguments
-dir=""
-while [[ \$# -gt 0 ]]; do
-  case \$1 in
-    -o)
-      dir="\$2"
-      shift 2
-      ;;
-    *)
-      shift
-      ;;
-  esac
-done
+                        # Create wrapper script that translates -o flag to purs-backend-es args
+                        cat > $out/bin/purs-backend-es <<EOF
+            #!/usr/bin/env bash
+            # Wrapper to translate standard -o flag to purs-backend-es arguments
+            dir=""
+            while [[ \$# -gt 0 ]]; do
+              case \$1 in
+                -o)
+                  dir="\$2"
+                  shift 2
+                  ;;
+                *)
+                  shift
+                  ;;
+              esac
+            done
 
-if [[ -z "\$dir" ]]; then
-  echo "Error: -o <directory> required" >&2
-  exit 1
-fi
+            if [[ -z "\$dir" ]]; then
+              echo "Error: -o <directory> required" >&2
+              exit 1
+            fi
 
-exec ${p.nodejs}/bin/node $out/lib/${pname}/index.js build --corefn-dir "\$dir" --output-dir "\$dir"
-EOF
-            chmod +x $out/bin/purs-backend-es
+            exec ${p.nodejs}/bin/node $out/lib/${pname}/index.js build --corefn-dir "\$dir" --output-dir "\$dir"
+            EOF
+                        chmod +x $out/bin/purs-backend-es
 
-            runHook postInstall
+                        runHook postInstall
           '';
 
           meta = with p.lib; {

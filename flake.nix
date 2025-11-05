@@ -27,7 +27,7 @@
         , system
         }:
         import ./purs-nix.nix {
-          docs-search = inputs.docs-search;
+          inherit (inputs) docs-search;
           inherit defaults overlays pkgs;
           inherit (parsec.lib) parsec;
           ps-tools = inputs.ps-tools.legacyPackages.${system};
@@ -114,21 +114,36 @@
             let
               lu = inputs.lint-utils.linters.${system};
 
-              # Backend tests run on all systems
-              backend-tests = (get-flake ./test-backend).checks.${system} or {};
+              # Create purs-nix instance for backend tests
+              purs-nix-for-system = import ./purs-nix.nix {
+                inherit (inputs) docs-search;
+                defaults = { };
+                overlays = [ ];
+                inherit pkgs;
+                inherit (inputs.parsec.lib) parsec;
+                ps-tools = inputs.ps-tools.legacyPackages.${system};
+              };
+
+              # Backend tests run on all systems (aarch64-darwin, x86_64-linux, aarch64-linux)
+              # Defined in tests.nix to keep this flake clean
+              backend-tests = import ./tests.nix {
+                inherit pkgs;
+                purs-nix-instance = purs-nix-for-system;
+              };
 
               # Original tests only on x86_64-linux
-              original-tests = if system == "x86_64-linux" then
-                (get-flake ./test).checks.${system}
-                // {
-                  "hello world example" =
-                    (get-flake ./examples/hello-world).packages.${system}.default;
+              original-tests =
+                if system == "x86_64-linux" then
+                  (get-flake ./test).checks.${system}
+                  // {
+                    "hello world example" =
+                      (get-flake ./examples/hello-world).packages.${system}.default;
 
-                  "foreign deps example" =
-                    (get-flake ./examples/foreign-dependencies).packages.${system}.default;
-                }
-              else
-                { };
+                    "foreign deps example" =
+                      (get-flake ./examples/foreign-dependencies).packages.${system}.default;
+                  }
+                else
+                  { };
             in
             {
               deadnix = lu.deadnix { src = ./.; };

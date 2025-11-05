@@ -1,6 +1,8 @@
-# purs-nix
+# purs-nix (Alternative Backends Fork)
 
 **purs-nix** is a tool for Nix-based PureScript development. It comes with both a Nix API, as well as a CLI you can use for development.
+
+**This fork** adds support for alternative PureScript backends (purerl, etc.) and optimizers (purs-backend-es, etc.) through a three-stage compilation pipeline: Source → CoreFn → [Optimizer] → Backend.
 
 **This project is currently unstable**. That being said, most of the current API has been stable for some time, and we try to maintain backwards compatibility when introducing new APIs if possible.
 
@@ -17,6 +19,52 @@
 - Copy the template from [templates/default](templates/default), and then replace `flake.nix` with [templates/shell.nix](templates/shell.nix).
 - Run `nix-shell` to enter a Nix shell with the `purs-nix` command added to your `PATH`.
 - Run `purs-nix run` to see the output of the default project.
+
+## Alternative Backends
+
+This fork adds support for alternative PureScript backends (like purerl for Erlang) and optimizers (like purs-backend-es).
+
+### Using a Backend
+
+```nix
+ps = purs-nix.purs {
+  dependencies = [ "prelude" "effect" ];
+  backend = {
+    package = purerl;  # Nix package containing the backend
+    cmd = "purerl";    # Command name to invoke
+  };
+  package-set = purerl-packages;  # Custom package set for this backend
+  dir = ./.;
+};
+```
+
+### Using an Optimizer
+
+```nix
+ps = purs-nix.purs {
+  dependencies = [ "prelude" ];
+  optimizer = {
+    package = purs-backend-es;
+    cmd = "purs-backend-es";
+    args = [ "build" ];  # Additional arguments
+  };
+  dir = ./.;
+};
+```
+
+See `tests/backends/` for complete working examples.
+
+### Package Set Locking
+
+For reproducible pure evaluation with custom package sets, use locked package sets:
+
+```bash
+nix run .#lock-package-set -- \
+  https://raw.githubusercontent.com/purerl/package-sets/erl-0.15.3-20220629/packages.json \
+  purerl-packages-locked.nix
+```
+
+See [docs/package-set-locking.md](docs/package-set-locking.md) for details.
 
 ## Learn
 

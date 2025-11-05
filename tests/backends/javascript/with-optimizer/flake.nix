@@ -1,22 +1,21 @@
 {
-  description = "Test JavaScript WITH optimizer (purs-backend-es)";
+  description = "JavaScript WITH optimizer (purs-backend-es) - no dependencies";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     get-flake.url = "github:ursi/get-flake";
   };
 
-  outputs = { self, nixpkgs, get-flake }:
+  outputs = { nixpkgs, get-flake, ... }:
     let
       system = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
 
-      # Get local purs-nix
-      main-project-flake = get-flake ../../.;
+      main-project-flake = get-flake ../../../..;
       purs-nix = main-project-flake { inherit system; };
-      u = import ../../utils.nix pkgs;
+      u = import ../../../../utils.nix pkgs;
 
-      purescript = purs-nix.purescript;
+      inherit (purs-nix) purescript;
 
       # Install purs-backend-es from npm registry
       purs-backend-es = pkgs.stdenv.mkDerivation rec {
@@ -31,24 +30,24 @@
         sourceRoot = "package";
 
         installPhase = ''
-          runHook preInstall
+                    runHook preInstall
 
-          mkdir -p $out/bin $out/lib
-          cp -r . $out/lib/${pname}
+                    mkdir -p $out/bin $out/lib
+                    cp -r . $out/lib/${pname}
 
-          # Create CLI wrapper
-          cat > $out/bin/purs-backend-es << 'WRAPPER'
-#!/usr/bin/env bash
-exec NODE_PATH "$@"
-WRAPPER
+                    # Create CLI wrapper
+                    cat > $out/bin/purs-backend-es << 'WRAPPER'
+          #!/usr/bin/env bash
+          exec NODE_PATH "$@"
+          WRAPPER
 
-          # Replace placeholders
-          sed -i "s|NODE_PATH|${pkgs.nodejs}/bin/node $out/lib/${pname}/index.js|" \
-            $out/bin/purs-backend-es
+                    # Replace placeholders
+                    sed -i "s|NODE_PATH|${pkgs.nodejs}/bin/node $out/lib/${pname}/index.js|" \
+                      $out/bin/purs-backend-es
 
-          chmod +x $out/bin/purs-backend-es
+                    chmod +x $out/bin/purs-backend-es
 
-          runHook postInstall
+                    runHook postInstall
         '';
 
         meta = with pkgs.lib; {
@@ -58,11 +57,10 @@ WRAPPER
         };
       };
 
-      # Minimal PureScript program (no dependencies)
+      # Program that benefits from optimization
       src = pkgs.writeTextDir "src/Main.purs" ''
         module Main where
 
-        -- Program that benefits from optimization
         identity :: forall a. a -> a
         identity x = x
 
@@ -73,9 +71,9 @@ WRAPPER
         main = compose identity identity 42
       '';
 
-      # STAGE 1: Compile to CoreFn (per-package, cached)
+      # STAGE 1: Compile to CoreFn
       corefn = pkgs.stdenv.mkDerivation {
-        name = "hello-corefn";
+        name = "optimizer-test-corefn";
         inherit src;
         buildInputs = [ purescript ];
         phases = [ "buildPhase" "installPhase" ];
@@ -88,10 +86,9 @@ WRAPPER
         installPhase = "cp -r output $out";
       };
 
-      # STAGES 2 & 3: Optimize + Generate JS (whole-project)
-      # purs-backend-es does BOTH optimization and JavaScript generation
+      # STAGES 2 & 3: Optimize + Generate JS
       optimized-js = pkgs.stdenv.mkDerivation {
-        name = "hello-optimized-js";
+        name = "optimizer-test-js";
         buildInputs = [ purs-backend-es pkgs.nodejs ];
         phases = [ "buildPhase" "installPhase" ];
         buildPhase = ''
@@ -99,7 +96,7 @@ WRAPPER
           cp -r ${corefn} output
           chmod -R u+w output
 
-          # Run optimizer+backend (combined Stage 2+3)
+          # Run optimizer+backend
           ${u.optimize-corefn-directory {
             optimizer = {
               package = purs-backend-es;
@@ -116,17 +113,14 @@ WRAPPER
     {
       packages.${system} = {
         default = optimized-js;
-        corefn = corefn;
-        optimized = optimized-js;
-        optimizer-tool = purs-backend-es;
+        inherit corefn;
       };
 
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = [ purescript purs-backend-es pkgs.nodejs ];
         shellHook = ''
-          echo "JavaScript WITH Optimizer test environment"
-          echo "Stage 1: purs → CoreFn"
-          echo "Stage 2+3: purs-backend-es → Optimized JS"
+          echo "JavaScript optimizer test (no dependencies)"
+          echo "purs-backend-es performs dead code elimination"
         '';
       };
     };

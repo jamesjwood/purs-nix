@@ -1,19 +1,18 @@
 {
-  description = "Hello World example with PureScript Erlang backend";
+  description = "Erlang test with Erlang-specific packages - erl-lists, erl-atom";
 
   inputs = {
-    get-flake.url = "github:ursi/get-flake";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    get-flake.url = "github:ursi/get-flake";
   };
 
-  outputs = { get-flake, nixpkgs, ... }:
+  outputs = { nixpkgs, get-flake, ... }:
     let
-      system = "aarch64-darwin"; # Change to your system
+      system = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
 
-      # Use local purs-nix for testing
-      main-project-flake = get-flake ../../.;
-      purs-nix-instance = main-project-flake { inherit system; };
+      main-project-flake = get-flake ../../../..;
+      purs-nix = main-project-flake { inherit system; };
 
       # Fetch purerl compiler
       purerl = pkgs.stdenv.mkDerivation rec {
@@ -32,11 +31,13 @@
         dontFixup = true;
       };
 
-      ps = purs-nix-instance.purs {
+      ps = purs-nix.purs {
         dependencies = [
-          "console"
-          "effect"
           "prelude"
+          "effect"
+          "console"
+          "erl-lists"
+          "erl-atom"
         ];
 
         backend = {
@@ -44,23 +45,22 @@
           package = purerl;
         };
 
-        # Use locked package set for pure evaluation (no --impure needed!)
+        # Use locked package set for pure evaluation
         package-set = import ./purerl-packages-locked.nix;
 
         dir = ./.;
       };
+
     in
     {
       packages.${system}.default = ps.output { };
 
       devShells.${system}.default = pkgs.mkShell {
-        buildInputs = [ purerl pkgs.erlang ];
+        buildInputs = [ purerl pkgs.erlang purs-nix.purescript ];
         shellHook = ''
-          echo "PureScript Erlang development environment"
-          echo "To regenerate locked package set:"
-          echo "  nix run github:purs-nix/purs-nix#lock-package-set -- \\"
-          echo "    https://raw.githubusercontent.com/purerl/package-sets/erl-0.15.3-20220629/packages.json \\"
-          echo "    purerl-packages-locked.nix"
+          echo "PureScript Erlang with Erlang-specific packages"
+          echo "Dependencies: prelude, effect, console, erl-lists, erl-atom"
+          echo "Tests native Erlang bindings"
         '';
       };
     };

@@ -49,11 +49,12 @@ rec {
     }:
     let
       opt-cmd = optimizer.cmd or "purs-backend-es";
-      opt-args = toString (optimizer.args or []);
+      opt-args = toString (optimizer.args or [ ]);
       opt-path = if optimizer ? package then "${optimizer.package}/bin/" else "";
-      directives = if optimizer ? directives
-                   then "--directives ${optimizer.directives}"
-                   else "";
+      directives =
+        if optimizer ? directives
+        then "--directives ${optimizer.directives}"
+        else "";
     in
     "${opt-path}${opt-cmd} ${opt-args} ${directives} ${corefn-dir}";
 
@@ -65,14 +66,15 @@ rec {
     }:
     let
       backend-cmd = backend.cmd or "purerl";
-      backend-args = toString (backend.args or []);
+      backend-args = toString (backend.args or [ ]);
       backend-path = if backend ? package then "${backend.package}/bin/" else "";
 
       # Run optimizer before backend if specified
-      optimize-step = if optimizer != null then
-        "${optimize-corefn { inherit optimizer corefn-dir; }} && "
-      else
-        "";
+      optimize-step =
+        if optimizer != null then
+          "${optimize-corefn { inherit optimizer corefn-dir; }} && "
+        else
+          "";
 
       # Allow custom command template, or use default
       backend-command =
@@ -125,7 +127,7 @@ rec {
         if backend != null && !skip-backend then
           let
             backend-cmd = backend.cmd or "purerl";
-            backend-args = toString (backend.args or []);
+            backend-args = toString (backend.args or [ ]);
             # Ensure backend command is available in PATH
             backend-path = if backend ? package then "${backend.package}/bin/" else "";
 
@@ -242,11 +244,11 @@ rec {
 
   # Convert a JSON package set (like purerl format) to purs-nix format
   # Supports both locked format (with rev) and unlocked format (with version tag)
-  convert-json-package-set = json-packages: self:
+  convert-json-package-set = json-packages: _:
     mapAttrs
-      (name: pkg: {
+      (_: pkg: {
         src.git = {
-          repo = pkg.repo;
+          inherit (pkg) repo;
         } // (
           # If package has rev (locked format), use it for pure evaluation
           # Otherwise use ref with tag (unlocked format, requires --impure)
@@ -278,7 +280,7 @@ rec {
         (make-flag "--output " output)
         (make-flag "--verbose-errors" verbose-errors)
         (make-flag "--comments" comments)
-        (make-flag "--codegen " "corefn")  # Always CoreFn only
+        (make-flag "--codegen " "corefn") # Always CoreFn only
         (make-flag "--no-prefix" no-prefix)
         (make-flag "--json-errors" json-errors)
       ];
@@ -292,7 +294,7 @@ rec {
     }:
     let
       opt-cmd = optimizer.cmd or "purs-backend-es";
-      opt-args = toString (optimizer.args or ["build"]);  # Default to "build" subcommand
+      opt-args = toString (optimizer.args or [ "build" ]); # Default to "build" subcommand
       opt-path = if optimizer ? package then "${optimizer.package}/bin/" else "";
 
       # purs-backend-es CLI: purs-backend-es build --corefn-dir X --output-dir Y
@@ -311,7 +313,7 @@ rec {
     }:
     let
       backend-cmd = backend.cmd or "purerl";
-      backend-args = toString (backend.args or []);
+      backend-args = toString (backend.args or [ ]);
       backend-path = if backend ? package then "${backend.package}/bin/" else "";
 
       # Allow custom command template, or use default

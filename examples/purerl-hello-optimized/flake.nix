@@ -35,12 +35,12 @@
         version = "6.4.3";
         src = pkgs.fetchurl {
           url =
-            if pkgs.stdenv.isDarwin then
+            if pkgs.stdenv.hostPlatform.isDarwin then
               "https://github.com/aristanetworks/purescript-backend-optimizer/releases/download/v6.4.3/Darwin.tar.gz"
             else
               "https://github.com/aristanetworks/purescript-backend-optimizer/releases/download/v6.4.3/Linux.tar.gz";
           sha256 =
-            if pkgs.stdenv.isDarwin then
+            if pkgs.stdenv.hostPlatform.isDarwin then
               "sha256-NotYetKnown"  # Will update after first fetch
             else
               "sha256-NotYetKnown";

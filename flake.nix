@@ -99,6 +99,9 @@
               lock-package-set = {
                 type = "app";
                 program = "${lock-package-set-wrapped}/bin/lock-package-set";
+                meta = {
+                  description = "Lock a PureScript package set by resolving git tags to commit hashes";
+                };
               };
 
               refresh-package-set = {
@@ -107,6 +110,9 @@
                   PATH=${p.lib.makeBinPath [ p.bash p.curl p.jq p.git ]}:$PATH
                   exec ${p.bash}/bin/bash ${lock-script} --refresh "$@"
                 ''}";
+                meta = {
+                  description = "Refresh a locked package set with latest commit hashes";
+                };
               };
             };
 

@@ -16,7 +16,7 @@ let
 
   # Fetch purerl binary for Erlang tests
   purerl =
-    if pkgs.stdenv.isDarwin then
+    if pkgs.stdenv.hostPlatform.isDarwin then
       pkgs.stdenv.mkDerivation
         rec {
           pname = "purerl";

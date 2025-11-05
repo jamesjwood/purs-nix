@@ -42,6 +42,18 @@ rec {
     else
       "${build} ${entry-point}";
 
+  # Run backend compiler on a CoreFn directory (for per-package compilation)
+  compile-backend =
+    { backend
+    , corefn-dir
+    }:
+    let
+      backend-cmd = backend.cmd or "purerl";
+      backend-args = toString (backend.args or []);
+      backend-path = if backend ? package then "${backend.package}/bin/" else "";
+    in
+    "${backend-path}${backend-cmd} ${backend-args} -o ${corefn-dir}";
+
   compile =
     purescript:
     { globs
@@ -52,11 +64,13 @@ rec {
     , codegen ? null
     , no-prefix ? false
     , json-errors ? false
+    , # New parameter: skip backend compilation (for incremental builds)
+      skip-backend ? false
     }:
     let
       # Force corefn codegen when backend is specified
       effective-codegen = if backend != null then "corefn" else codegen;
-      
+
       flags = toString [
         (make-flag "--output " output)
         (make-flag "--verbose-errors" verbose-errors)
@@ -65,11 +79,11 @@ rec {
         (make-flag "--no-prefix" no-prefix)
         (make-flag "--json-errors" json-errors)
       ];
-      
+
       purs-compile = "${purescript}/bin/purs compile ${flags} ${globs}";
-      
-      backend-compile = 
-        if backend != null then
+
+      backend-compile =
+        if backend != null && !skip-backend then
           let
             backend-cmd = backend.cmd or "purerl";
             backend-args = toString (backend.args or []);
@@ -77,7 +91,7 @@ rec {
             # Ensure backend command is available in PATH
             backend-path = if backend ? package then "${backend.package}/bin/" else "";
           in
-          " && ${backend-path}${backend-cmd} ${backend-args} --output ${output-dir} ${output-dir}"
+          " && ${backend-path}${backend-cmd} ${backend-args} -o ${output-dir}"
         else
           "";
     in
@@ -180,4 +194,25 @@ rec {
     (if typeOf dep == "string"
     then ps-pkgs.${dep}
     else dep).purs-nix-info;
+
+  # Convert a JSON package set (like purerl format) to purs-nix format
+  # Supports both locked format (with rev) and unlocked format (with version tag)
+  convert-json-package-set = json-packages: self:
+    mapAttrs
+      (name: pkg: {
+        src.git = {
+          repo = pkg.repo;
+        } // (
+          # If package has rev (locked format), use it for pure evaluation
+          # Otherwise use ref with tag (unlocked format, requires --impure)
+          if pkg ? rev then
+            { inherit (pkg) rev; }
+          else
+            { ref = "refs/tags/${pkg.version}"; }
+        );
+        info = {
+          inherit (pkg) version dependencies;
+        };
+      })
+      json-packages;
 }

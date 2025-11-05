@@ -1,0 +1,7 @@
+project:
+  name: "purs-nix"
+  tags: ["general", "testing", "nix"]
+  description: "PureScript projects for nix"
+  header: |
+    a fork of purs-nix that supports alternative backends
+  footer: |

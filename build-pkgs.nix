@@ -41,12 +41,13 @@ let
         src =
           let
             fetch-git =
-              { repo, rev, ... }:
+              { repo, rev ? null, ... }:
               fetchGit
                 ({
                   url = repo;
-                  inherit rev;
-                } // (if ref == null then { } else { inherit ref; }));
+                }
+                // (if rev != null then { inherit rev; } else { })
+                // (if ref == null then { } else { inherit ref; }));
           in
           if legacy then
             fetch-git args

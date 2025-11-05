@@ -87,15 +87,38 @@
                 ps-pkgs;
           };
 
-          checks =
-            let lu = inputs.lint-utils.linters.${system}; in
+          apps =
+            let
+              lock-script = ./scripts/lock-package-set.sh;
+              lock-package-set-wrapped = p.writeShellScriptBin "lock-package-set" ''
+                PATH=${p.lib.makeBinPath [ p.bash p.curl p.jq p.git ]}:$PATH
+                exec ${p.bash}/bin/bash ${lock-script} "$@"
+              '';
+            in
             {
-              deadnix = lu.deadnix { src = ./.; };
-              formatting = lu.nixpkgs-fmt { src = ./.; };
-              statix = lu.statix { src = ./.; };
-            }
-            // (
-              if system == "x86_64-linux" then
+              lock-package-set = {
+                type = "app";
+                program = "${lock-package-set-wrapped}/bin/lock-package-set";
+              };
+
+              refresh-package-set = {
+                type = "app";
+                program = "${p.writeShellScript "refresh-package-set" ''
+                  PATH=${p.lib.makeBinPath [ p.bash p.curl p.jq p.git ]}:$PATH
+                  exec ${p.bash}/bin/bash ${lock-script} --refresh "$@"
+                ''}";
+              };
+            };
+
+          checks =
+            let
+              lu = inputs.lint-utils.linters.${system};
+
+              # Backend tests run on all systems
+              backend-tests = (get-flake ./test-backend).checks.${system} or {};
+
+              # Original tests only on x86_64-linux
+              original-tests = if system == "x86_64-linux" then
                 (get-flake ./test).checks.${system}
                 // {
                   "hello world example" =
@@ -105,8 +128,15 @@
                     (get-flake ./examples/foreign-dependencies).packages.${system}.default;
                 }
               else
-                { }
-            );
+                { };
+            in
+            {
+              deadnix = lu.deadnix { src = ./.; };
+              formatting = lu.nixpkgs-fmt { src = ./.; };
+              statix = lu.statix { src = ./.; };
+            }
+            // backend-tests
+            // original-tests;
 
           devShells.default = make-shell {
             packages = with p; [

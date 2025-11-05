@@ -35,6 +35,7 @@ in
     , purescript ? purescript'
     , foreign ? { }
     , backend ? null
+    , package-set ? null
     , # this parameter is purposely undocumented because I don't see a reason to make
       # it part of the API. However, I have already done the work to make it optional,
       # so I will leave it here for now just in case.
@@ -68,6 +69,37 @@ in
 
       test-module = args.test-module or "Test.Main";
 
+      # Custom package set loading for backends
+      ps-pkgs' =
+        if package-set != null then
+          let
+            inherit (ps-package-stuff) build-set;
+
+            # Check if package-set is already a function (locked format)
+            # or needs to be fetched and converted
+            is-function = typeOf package-set == "lambda";
+          in
+          if is-function then
+            # Already in locked format: package-set is a function (self: {...})
+            build-set package-set
+          else
+            let
+              # Fetch and parse the external package set (JSON format)
+              package-set-json = if package-set ? url then
+                fromJSON (readFile (p.fetchurl {
+                  url = package-set.url;
+                  sha256 = package-set.sha256 or p.lib.fakeSha256;
+                }))
+              else if package-set ? file then
+                fromJSON (readFile package-set.file)
+              else
+                package-set;
+            in
+            # Convert JSON to purs-nix format and build
+            build-set (u.convert-json-package-set package-set-json)
+        else
+          ps-pkgs;
+
       create-closure-set = deps:
         let
           f = direct:
@@ -80,8 +112,8 @@ in
                 in
                 if typeOf dep == "string" then
                   if !included then
-                    g (acc // { ${dep} = ps-pkgs.${dep}; })
-                      ps-pkgs.${dep}.purs-nix-info.dependencies
+                    g (acc // { ${dep} = ps-pkgs'.${dep}; })
+                      ps-pkgs'.${dep}.purs-nix-info.dependencies
                   else
                     acc
                 else
@@ -89,7 +121,7 @@ in
                   if direct then
                     g (acc // { ${info.name} = dep; }) info.dependencies
                   else if !included then
-                    g (acc // { ${info.name} = ps-pkgs.${info.name}; })
+                    g (acc // { ${info.name} = ps-pkgs'.${info.name}; })
                       info.dependencies
                   else
                     acc);
@@ -209,8 +241,46 @@ in
                       (args
                        // { globs = make-dep-globs deps;
                             output = "output";
-                            inherit backend;
+                            backend = backend;
+                            skip-backend = backend != null;  # Skip if backend exists
                           })
+                  }
+
+                  ${if backend != null then
+                    ''
+                      # Backend compilation: only process current modules (not dependencies)
+                      # First, move dependencies aside temporarily
+                      mkdir -p output-deps
+                      if [ -d output ]; then
+                        cd output
+                        for item in *; do
+                          # Check if this looks like a dependency (from pre-compile)
+                          # Dependencies will have .erl files, source modules won't yet
+                          if [ -d "$item" ]; then
+                            if find "$item" -name "*.erl" -type f | grep -q .; then
+                              mv "$item" ../output-deps/ 2>/dev/null || true
+                            fi
+                          fi
+                        done
+                        cd ..
+                      fi
+
+                      # Run backend on current modules only (if there's anything left)
+                      if [ -d output ] && find output -name "corefn.json" -type f | grep -q .; then
+                        ${u.compile-backend {
+                          inherit backend;
+                          corefn-dir = "output";
+                        }}
+                      fi
+
+                      # Move dependencies back
+                      if [ -d output-deps ]; then
+                        mv output-deps/* output/ 2>/dev/null || true
+                        rmdir output-deps
+                      fi
+                    ''
+                  else
+                    ""
                   }
                 ''
               else
@@ -230,8 +300,8 @@ in
           (foldl'
             (
               acc: d:
-              let
-                info = u.dep-info ps-pkgs d;
+               let
+                info = u.dep-info ps-pkgs' d;
                 dep-deps = map u.dep-name info.dependencies;
               in
               removeAttrs acc dep-deps // { ${info.name} = d; }
@@ -308,7 +378,8 @@ in
               }
               (get-leaves dependencies);
 
-          unprocessed = mkDerivation {
+          # CoreFn compilation (skip backend to avoid permission issues)
+          corefn-drv = mkDerivation {
             inherit name;
             phases = [ "buildPhase" "installPhase" ];
 
@@ -324,7 +395,8 @@ in
                             ''"${local-globs}"''
                         } ${make-dep-globs all-deps}";
                      output = "output";
-                     inherit backend;
+                     backend = backend;
+                     skip-backend = true;  # Always skip backend in incremental compile
                    }
               )}
 
@@ -333,9 +405,61 @@ in
 
             installPhase = "mv output $out";
           };
+
+          # Backend compilation (separate derivation to avoid symlink issues)
+          final-drv =
+            if backend != null then
+              mkDerivation {
+                name = "${name}-backend";
+                phases = [ "buildPhase" "installPhase" ];
+
+                buildPhase = ''
+                  # Copy ONLY current package's CoreFn (not dependencies)
+                  # to avoid permission issues when purerl tries to write
+                  mkdir -p output
+
+                  # Copy non-symlinked items (current package modules) from corefn-drv
+                  for item in ${corefn-drv}/*; do
+                    basename_item=$(basename "$item")
+                    if [ -d "$item" ] && [ ! -L "$item" ]; then
+                      ${copy} "$item" "output/$basename_item"
+                    elif [ -f "$item" ]; then
+                      ${copy} "$item" "output/$basename_item"
+                    fi
+                  done
+
+                  chmod -R u+w output
+
+                  # Run backend compiler on current package only (if there's content)
+                  # Check if output has any corefn.json files (non-dependency content)
+                  if find output -name "corefn.json" -type f | grep -q .; then
+                    ${u.compile-backend {
+                      inherit backend;
+                      corefn-dir = "output";
+                    }}
+                  fi
+
+                  # Now copy in .erl files from dependencies
+                  for item in ${corefn-drv}/*; do
+                    basename_item=$(basename "$item")
+                    if [ -L "$item" ] && [ -d "$item" ]; then
+                      # This is a symlinked dependency directory
+                      # Copy .erl files from it (they should exist from backend compilation)
+                      target="$(readlink -f "$item")"
+                      if [ -d "$target" ]; then
+                        ${copy} "$target" "output/$basename_item" 2>/dev/null || true
+                      fi
+                    fi
+                  done
+                '';
+
+                installPhase = "mv output $out";
+              }
+            else
+              corefn-drv;
         in
         {
-          drv = unprocessed;
+          drv = final-drv;
           acc = acc // augmentations.acc;
         };
 
@@ -712,10 +836,10 @@ in
           docs-search
           nodejs
           pkgs
-          ps-pkgs
+          ps-pkgs'
           purescript;
 
-        repl-globs = make-dep-globs (all-dependencies ++ [ ps-pkgs.psci-support ]);
+        repl-globs = make-dep-globs (all-dependencies ++ [ ps-pkgs'.psci-support ]);
         srcs' = (a: if args ? dir then args.srcs or a else a) [ "src" ];
         test' = (a: if args ? dir then args.test or a else a) "test";
         test-module' = test-module;

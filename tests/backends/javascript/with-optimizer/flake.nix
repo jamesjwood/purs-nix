@@ -15,47 +15,8 @@
       purs-nix = main-project-flake { inherit system; };
       u = import ../../../../utils.nix pkgs;
 
-      inherit (purs-nix) purescript;
-
-      # Install purs-backend-es from npm registry
-      purs-backend-es = pkgs.stdenv.mkDerivation rec {
-        pname = "purs-backend-es";
-        version = "1.4.2";
-
-        src = pkgs.fetchurl {
-          url = "https://registry.npmjs.org/${pname}/-/${pname}-${version}.tgz";
-          hash = "sha256-oEkAUq7VFz2gB5r124ssu4H/zu2g6ydrArV3Nz584Do=";
-        };
-
-        sourceRoot = "package";
-
-        installPhase = ''
-                    runHook preInstall
-
-                    mkdir -p $out/bin $out/lib
-                    cp -r . $out/lib/${pname}
-
-                    # Create CLI wrapper
-                    cat > $out/bin/purs-backend-es << 'WRAPPER'
-          #!/usr/bin/env bash
-          exec NODE_PATH "$@"
-          WRAPPER
-
-                    # Replace placeholders
-                    sed -i "s|NODE_PATH|${pkgs.nodejs}/bin/node $out/lib/${pname}/index.js|" \
-                      $out/bin/purs-backend-es
-
-                    chmod +x $out/bin/purs-backend-es
-
-                    runHook postInstall
-        '';
-
-        meta = with pkgs.lib; {
-          description = "Optimizing backend toolkit for PureScript";
-          homepage = "https://github.com/aristanetworks/purescript-backend-optimizer";
-          license = licenses.asl20;
-        };
-      };
+      inherit (purs-nix) purescript tools;
+      inherit (tools) pursBackendEs;
 
       # Program that benefits from optimization
       src = pkgs.writeTextDir "src/Main.purs" ''
@@ -89,7 +50,7 @@
       # STAGES 2 & 3: Optimize + Generate JS
       optimized-js = pkgs.stdenv.mkDerivation {
         name = "optimizer-test-js";
-        buildInputs = [ purs-backend-es pkgs.nodejs ];
+        buildInputs = [ pursBackendEs pkgs.nodejs ];
         phases = [ "buildPhase" "installPhase" ];
         buildPhase = ''
           # Copy CoreFn
@@ -99,7 +60,7 @@
           # Run optimizer+backend
           ${u.optimize-corefn-directory {
             optimizer = {
-              package = purs-backend-es;
+              package = pursBackendEs;
               cmd = "purs-backend-es";
               args = ["build"];
             };

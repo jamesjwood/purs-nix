@@ -1,12 +1,13 @@
 {
-  description = "Minimal Erlang test - no dependencies, single file";
+  description = "Minimal backend-erl test - no dependencies, single file";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     get-flake.url = "github:ursi/get-flake";
   };
 
-  outputs = { nixpkgs, get-flake, ... }:
+  outputs =
+    { nixpkgs, get-flake, ... }:
     let
       system = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -16,7 +17,7 @@
       u = import ../../../../utils.nix pkgs;
 
       inherit (purs-nix) purescript tools;
-      inherit (tools) purerl;
+      inherit (tools) pursBackendErl;
 
       # Minimal program - no dependencies
       src = pkgs.writeTextDir "src/Main.purs" ''
@@ -34,32 +35,44 @@
         name = "minimal-corefn";
         inherit src;
         buildInputs = [ purescript ];
-        phases = [ "buildPhase" "installPhase" ];
+        phases = [
+          "buildPhase"
+          "installPhase"
+        ];
         buildPhase = ''
-          ${u.compile-corefn-only purescript {
-            globs = ''"${src}/src/**/*.purs"'';
-            output = "output";
-          }}
+          ${
+            u.compile-corefn-only purescript {
+              globs = ''"${src}/src/**/*.purs"'';
+              output = "output";
+            }
+          }
         '';
         installPhase = "cp -r output $out";
       };
 
-      # Stage 3: Backend compilation
+      # Stage 3: Backend compilation with purs-backend-erl
       backend-output = pkgs.stdenv.mkDerivation {
-        name = "minimal-erl";
-        buildInputs = [ purerl ];
-        phases = [ "buildPhase" "installPhase" ];
+        name = "minimal-backend-erl";
+        buildInputs = [
+          pursBackendErl
+          pkgs.nodejs
+        ];
+        phases = [
+          "buildPhase"
+          "installPhase"
+        ];
         buildPhase = ''
           cp -r ${corefn} output
           chmod -R u+w output
 
-          ${u.compile-backend-directory {
-            backend = {
-              package = purerl;
-              cmd = "purerl";
-            };
-            corefn-dir = "output";
-          }}
+          # purs-backend-erl reads from output/ and writes to output-erl/
+          ${pursBackendErl}/bin/purs-backend-erl
+
+          # Move output-erl contents back to output for consistency with purerl
+          if [ -d output-erl ]; then
+            cp -r output-erl/* output/ 2>/dev/null || true
+            rmdir output-erl 2>/dev/null || true
+          fi
         '';
         installPhase = "cp -r output $out";
       };
@@ -72,7 +85,11 @@
       };
 
       devShells.${system}.default = pkgs.mkShell {
-        buildInputs = [ purescript purerl pkgs.erlang ];
+        buildInputs = [
+          purescript
+          pursBackendErl
+          pkgs.erlang
+        ];
       };
     };
 }

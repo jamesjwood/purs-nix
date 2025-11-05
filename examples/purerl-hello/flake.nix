@@ -15,22 +15,8 @@
       main-project-flake = get-flake ../../.;
       purs-nix-instance = main-project-flake { inherit system; };
 
-      # Fetch purerl compiler
-      purerl = pkgs.stdenv.mkDerivation rec {
-        pname = "purerl";
-        version = "0.0.24";
-        src = pkgs.fetchurl {
-          url = "https://github.com/purerl/purerl/releases/download/v${version}/macos.tar.gz";
-          sha256 = "sha256-YcUIDA3q/Az6dSKTK3OhhyIQIoYkPI3B/LfRxVsDYsk=";
-        };
-        sourceRoot = ".";
-        installPhase = ''
-          mkdir -p $out/bin
-          tar -xzf $src
-          install -m755 -D purerl/purerl $out/bin/purerl
-        '';
-        dontFixup = true;
-      };
+      inherit (purs-nix-instance) tools;
+      inherit (tools) purerl;
 
       ps = purs-nix-instance.purs {
         dependencies = [

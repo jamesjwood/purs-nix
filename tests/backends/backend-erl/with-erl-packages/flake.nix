@@ -1,12 +1,13 @@
 {
-  description = "Erlang test with Erlang-specific packages - erl-lists, erl-atom";
+  description = "Backend-erl test with Erlang-specific packages - erl-lists, erl-atom";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     get-flake.url = "github:ursi/get-flake";
   };
 
-  outputs = { nixpkgs, get-flake, ... }:
+  outputs =
+    { nixpkgs, get-flake, ... }:
     let
       system = "aarch64-darwin";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -15,7 +16,7 @@
       purs-nix = main-project-flake { inherit system; };
 
       inherit (purs-nix) tools;
-      inherit (tools) purerl;
+      inherit (tools) pursBackendErl;
 
       ps = purs-nix.purs {
         dependencies = [
@@ -27,8 +28,8 @@
         ];
 
         backend = {
-          cmd = "purerl";
-          package = purerl;
+          cmd = "purs-backend-erl";
+          package = pursBackendErl;
         };
 
         # Use locked package set for pure evaluation
@@ -42,9 +43,13 @@
       packages.${system}.default = ps.output { };
 
       devShells.${system}.default = pkgs.mkShell {
-        buildInputs = [ purerl pkgs.erlang purs-nix.purescript ];
+        buildInputs = [
+          pursBackendErl
+          pkgs.erlang
+          purs-nix.purescript
+        ];
         shellHook = ''
-          echo "PureScript Erlang with Erlang-specific packages"
+          echo "PureScript backend-erl with Erlang-specific packages"
           echo "Dependencies: prelude, effect, console, erl-lists, erl-atom"
           echo "Tests native Erlang bindings"
         '';

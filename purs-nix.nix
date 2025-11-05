@@ -29,6 +29,7 @@ in
   inherit (pkgs) esbuild;
   inherit (pkgs.lib) licenses;
   purescript = purescript';
+  tools = import ./tools.nix pkgs;
 
   purs =
     { nodejs ? pkgs.nodejs
@@ -250,19 +251,25 @@ in
                   }
 
                   ${if backend != null then
+                    let
+                      # Use closure information instead of .erl heuristic
+                      # Filter out source paths - only process package dependencies
+                      package-deps = filter (d: typeOf d != "path") deps;
+                      dep-names = map (d: (u.dep-info ps-pkgs' d).name) package-deps;
+                    in
                     ''
                       # Backend compilation: only process current modules (not dependencies)
-                      # First, move dependencies aside temporarily
+                      # Use known dependency names from closure instead of file heuristic
                       mkdir -p output-deps
                       if [ -d output ]; then
                         cd output
                         for item in *; do
-                          # Check if this looks like a dependency (from pre-compile)
-                          # Dependencies will have .erl files, source modules won't yet
                           if [ -d "$item" ]; then
-                            if find "$item" -name "*.erl" -type f | grep -q .; then
-                              mv "$item" ../output-deps/ 2>/dev/null || true
-                            fi
+                            # Check if this directory is a known dependency
+                            case "$item" in
+                              ${l.concatMapStringsSep "\n                " (name: "${name}) mv \"$item\" ../output-deps/ 2>/dev/null || true ;;") dep-names}
+                              *) ;;
+                            esac
                           fi
                         done
                         cd ..
@@ -443,12 +450,12 @@ in
                       }}
                     fi
 
-                    # Now copy in .erl files from dependencies
+                    # Now copy in backend output from dependencies
                     for item in ${corefn-drv}/*; do
                       basename_item=$(basename "$item")
                       if [ -L "$item" ] && [ -d "$item" ]; then
-                        # This is a symlinked dependency directory
-                        # Copy .erl files from it (they should exist from backend compilation)
+                        # This is a symlinked dependency directory (from closure)
+                        # Copy backend output from it (should exist from backend compilation)
                         target="$(readlink -f "$item")"
                         if [ -d "$target" ]; then
                           ${copy} "$target" "output/$basename_item" 2>/dev/null || true

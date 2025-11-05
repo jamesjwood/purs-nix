@@ -5,16 +5,31 @@
       flake = false;
       url = "github:jamesjwood/purescript-docs-search";
     };
-    get-flake.url = "github:ursi/get-flake";
+    get-flake = {
+      url = "github:ursi/get-flake";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     lint-utils = {
       url = "github:homotopic/lint-utils";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    make-shell.url = "github:ursi/nix-make-shell/1";
+    make-shell = {
+      url = "github:ursi/nix-make-shell/1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    parsec.url = "github:nprindle/nix-parsec";
-    ps-tools.url = "github:jamesjwood/purescript-tools/arm64-support";
-    utils.url = "github:ursi/flake-utils/8";
+    parsec = {
+      url = "github:nprindle/nix-parsec";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    ps-tools = {
+      url = "github:jamesjwood/purescript-tools/arm64-support";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    utils = {
+      url = "github:ursi/flake-utils/8";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { get-flake, parsec, utils, ... }@inputs:
@@ -113,6 +128,21 @@
                 meta = {
                   description = "Refresh a locked package set with latest commit hashes";
                 };
+              };
+
+              prefetch-url = {
+                type = "app";
+                program = "${p.writeShellScript "prefetch-url" ''
+                  set -euo pipefail
+                  if [ $# -lt 1 ]; then
+                    echo "usage: prefetch-url <URL>" >&2
+                    exit 1
+                  fi
+                  URL="$1"
+                  HASH=$(${p.nix}/bin/nix store prefetch-file --json "$URL" | ${p.jq}/bin/jq -r .hash)
+                  echo "hash = \"$HASH\";"
+                ''}";
+                meta = { description = "Prefetch a URL and print a Nix hash attribute"; };
               };
             };
 

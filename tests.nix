@@ -11,68 +11,9 @@
 }:
 
 let
-  inherit (purs-nix-instance) purescript;
+  inherit (purs-nix-instance) purescript tools;
   u = import ./utils.nix pkgs;
-
-  # Fetch purerl binary for Erlang tests
-  purerl =
-    if pkgs.stdenv.hostPlatform.isDarwin then
-      pkgs.stdenv.mkDerivation
-        rec {
-          pname = "purerl";
-          version = "0.0.24";
-          src = pkgs.fetchurl {
-            url = "https://github.com/purerl/purerl/releases/download/v${version}/macos.tar.gz";
-            sha256 = "sha256-YcUIDA3q/Az6dSKTK3OhhyIQIoYkPI3B/LfRxVsDYsk=";
-          };
-          sourceRoot = ".";
-          installPhase = ''
-            mkdir -p $out/bin
-            tar -xzf $src
-            install -m755 -D purerl/purerl $out/bin/purerl
-          '';
-          dontFixup = true;
-        }
-    else
-      pkgs.stdenv.mkDerivation rec {
-        pname = "purerl";
-        version = "0.0.24";
-        src = pkgs.fetchurl {
-          url = "https://github.com/purerl/purerl/releases/download/v${version}/linux.tar.gz";
-          sha256 = "sha256-c/FK5bT5JU3PCuVeKUnry7FYo0JS3kS8h7OM01hmK3A=";
-        };
-        sourceRoot = ".";
-        installPhase = ''
-          mkdir -p $out/bin
-          tar -xzf $src
-          install -m755 -D purerl/purerl $out/bin/purerl
-        '';
-        dontFixup = true;
-      };
-
-  # Fetch purs-backend-es for optimizer tests
-  purs-backend-es = pkgs.stdenv.mkDerivation rec {
-    pname = "purs-backend-es";
-    version = "1.4.2";
-    src = pkgs.fetchurl {
-      url = "https://registry.npmjs.org/${pname}/-/${pname}-${version}.tgz";
-      hash = "sha256-oEkAUq7VFz2gB5r124ssu4H/zu2g6ydrArV3Nz584Do=";
-    };
-    sourceRoot = "package";
-    installPhase = ''
-            runHook preInstall
-            mkdir -p $out/bin $out/lib
-            cp -r . $out/lib/${pname}
-            cat > $out/bin/purs-backend-es << 'WRAPPER'
-      #!/usr/bin/env bash
-      exec NODE_PATH "$@"
-      WRAPPER
-            sed -i "s|NODE_PATH|${pkgs.nodejs}/bin/node $out/lib/${pname}/index.js|" \
-              $out/bin/purs-backend-es
-            chmod +x $out/bin/purs-backend-es
-            runHook postInstall
-    '';
-  };
+  inherit (tools) purerl pursBackendEs;
 
 in
 {
@@ -128,14 +69,14 @@ in
     in
     pkgs.stdenv.mkDerivation {
       name = "backend-js-with-optimizer";
-      buildInputs = [ purs-backend-es pkgs.nodejs ];
+      buildInputs = [ pursBackendEs pkgs.nodejs ];
       phases = [ "buildPhase" "installPhase" ];
       buildPhase = ''
         cp -r ${corefn} output
         chmod -R u+w output
         ${u.optimize-corefn-directory {
           optimizer = {
-            package = purs-backend-es;
+            package = pursBackendEs;
             cmd = "purs-backend-es";
             args = [ "build" ];
           };

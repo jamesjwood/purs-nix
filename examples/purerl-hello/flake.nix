@@ -2,15 +2,18 @@
   description = "Hello World example with PureScript Erlang backend";
 
   inputs = {
-    purs-nix.url = "github:purs-nix/purs-nix";
-    nixpkgs.follows = "purs-nix/nixpkgs";
+    get-flake.url = "github:ursi/get-flake";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
-  outputs = { self, purs-nix, nixpkgs }:
+  outputs = { self, get-flake, nixpkgs }:
     let
       system = "aarch64-darwin";  # Change to your system
       pkgs = nixpkgs.legacyPackages.${system};
-      purs-nix-instance = purs-nix { inherit system; };
+
+      # Use local purs-nix for testing
+      main-project-flake = get-flake ../../.;
+      purs-nix-instance = main-project-flake { inherit system; };
 
       # Fetch purerl compiler
       purerl = pkgs.stdenv.mkDerivation rec {
